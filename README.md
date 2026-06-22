@@ -10,9 +10,16 @@ Personal Claude skills.
 
 ## Install
 
-The skills are registered via `.claude-plugin/plugin.json`. To activate a skill
-directly, symlink it into your runtime skills directory:
+The skills are registered via `.claude-plugin/plugin.json`.
+
+**Claude Code** — symlink into the runtime skills dir (stays in sync with the source):
 
 ```sh
 ln -s "$PWD/skills/engineering/fix-pr-mantra" ~/.claude/skills/fix-pr-mantra
+```
+
+**Kiro** — hard copy into its skills dir (re-run after editing the source to re-sync):
+
+```sh
+cp -R "$PWD/skills/engineering/fix-pr-mantra" ~/.kiro/skills/fix-pr-mantra
 ```
