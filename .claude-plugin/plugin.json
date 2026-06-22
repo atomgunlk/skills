@@ -1,0 +1,6 @@
+{
+  "name": "atomgun-skills",
+  "skills": [
+    "./skills/engineering/fix-pr-mantra"
+  ]
+}
