@@ -31,7 +31,7 @@ The six skills compose: `implement-task` drives `use-worktree` for isolation and
 ### Claude Code (manual, stays in sync with your clone)
 
 ```sh
-git clone https://github.com/atomgunlk/skills.git
+git clone --branch v1.0.0 --depth 1 https://github.com/atomgunlk/skills.git
 cd skills
 ln -s "$PWD/skills/engineering/<skill-name>" ~/.claude/skills/<skill-name>
 ```
