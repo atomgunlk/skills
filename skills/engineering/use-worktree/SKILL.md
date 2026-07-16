@@ -22,6 +22,12 @@ cd "$WT"
 - `base` — fork point (optional; default: origin's default branch)
 - `slug` — worktree dir name (optional; default: branch with `/`→`-`)
 
+**Detached mode** — no new branch, checkout at a commit (e.g. a PR head SHA; fetch it first):
+
+```bash
+WT=$(<skill-dir>/scripts/create-worktree.sh --detach <commitish> [slug])
+```
+
 The script fetches origin, creates the worktree as a sibling of the **main** checkout
 (`<repo>.worktrees/<slug>`), and prints the worktree path to stdout (diagnostics go to
 stderr), so `cd "$(…)"` lands you in it. It works even when invoked from inside another
@@ -38,6 +44,9 @@ WT=$(<skill-dir>/scripts/create-worktree.sh fix/hotfix-login origin/release/1.2)
 
 # Custom directory name for the worktree
 WT=$(<skill-dir>/scripts/create-worktree.sh feat/abc-1234-foo "" abc-1234)
+
+# Detached checkout of a PR head for review (no branch created)
+WT=$(<skill-dir>/scripts/create-worktree.sh --detach "$HEAD_SHA" review-pr-42)
 ```
 
 ## Optional: direnv users
