@@ -1,6 +1,8 @@
 {
-  "name": "atomgun-skills",
+  "name": "atomgun",
   "skills": [
-    "./skills/engineering/fix-pr-mantra"
+    "./skills/engineering/fix-pr-mantra",
+    "./skills/engineering/implement-task",
+    "./skills/engineering/use-worktree"
   ]
 }
