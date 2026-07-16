@@ -1,0 +1,14 @@
+{
+  "name": "atomgun-skills",
+  "owner": {
+    "name": "Atomgun",
+    "url": "https://github.com/atomgunlk"
+  },
+  "plugins": [
+    {
+      "name": "atomgun",
+      "source": "./",
+      "description": "Engineering workflow skills: git worktrees, end-to-end task implementation, inline PR review, PR-comment triage, and Jira/Confluence editing via the Atlassian MCP."
+    }
+  ]
+}

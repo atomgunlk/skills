@@ -1,0 +1,5 @@
+# Local design docs / specs — never committed
+docs/superpowers/
+
+# OS noise
+.DS_Store
