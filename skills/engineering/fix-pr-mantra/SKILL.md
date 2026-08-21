@@ -1,11 +1,11 @@
 ---
 name: fix-pr-mantra
-description: Use when addressing pull-request review comments or feedback — "fix the review comments", "address the PR feedback", "go through the comments on this PR", a reviewer (human or bot like CodeRabbit/ultrareview) left comments, or a PR URL is pasted with review feedback to act on. Triggers on /fix-pr-mantra.
+description: Use when addressing pull-request review comments — "fix the review comments", a reviewer or bot (CodeRabbit, ultrareview) left comments to act on, or a PR URL/number is pasted with review feedback. Triggers on /fix-pr-mantra.
 ---
 
 # Fix PR Mantra
 
-Four-step discipline for turning PR review comments into changes. **Core principle: every comment earns a written verdict before a single line changes, and nothing is edited until the user approves the plan.** Recite the mantra verbatim, then apply the steps in order.
+Four-step discipline for turning PR review comments into changes. Recite the mantra verbatim, then apply the steps in order.
 
 ## Recite this — verbatim, as the first thing in your first response
 
@@ -30,24 +30,24 @@ changes with PR size is only WHO executes it.
 - **Branch guard.** Confirm the checkout is on the PR's head branch (`gh pr view --json headRefName`
   vs `git branch --show-current`) — fact-checks read this code and step 4 commits to it. On a
   different branch → tell the user and get an OK to switch before gathering.
-- **Count first** — a cheap query decides who gathers:
+- **Count first** — one cheap query decides who gathers:
   ```sh
   gh api graphql -f query='
   query($owner:String!,$repo:String!,$pr:Int!){
     repository(owner:$owner,name:$repo){
-      pullRequest(number:$pr){
-        reviewThreads(first:100){ nodes{ isResolved } }
-      }
+      pullRequest(number:$pr){ reviewThreads(first:100){ nodes{ isResolved } } }
     }
-  }' -F owner=OWNER -F repo=REPO -F pr=NUM
+  }' -F owner=OWNER -F repo=REPO -F pr=NUM \
+    --jq '[.data.repository.pullRequest.reviewThreads.nodes[]|select(.isResolved==false)]|length'
   ```
-  Count the `isResolved=false` nodes. The number decides, nothing else.
-- **More than 8 unresolved threads:** dispatch ONE `Explore` agent on the `ledger-builder.md`
-  contract (pass owner/repo, PR number, and the workspace `gh` prefix). It absorbs the raw
-  thread JSON, diffHunks, bot review bodies, and every cited-line file read; you receive only
-  the compact ledger — the raw payload never enters your context.
-- **8 or fewer:** read `ledger-builder.md` and follow it yourself inline — same fetch,
-  pagination, noise filter, fact-check, and ledger shape.
+  That number decides, nothing else.
+- **More than 8 unresolved threads:** dispatch ONE `Explore` agent with `ledger-builder.md` as its
+  prompt (pass owner/repo, PR number, and the `gh` prefix this workspace needs). The subagent
+  absorbs the raw thread JSON, diffHunks, bot review bodies, and every cited-line file read; you
+  receive only the compact ledger.
+- **8 or fewer:** read `ledger-builder.md` and run it yourself — same fetch, pagination, noise
+  filter, fact-check, and ledger shape; at this size the raw payload is affordable in your own
+  context.
 - Either way you now hold the **ledger** (one row per open item, with `thread_id`, location,
   ask, excerpt, `fact_check`). Rows marked `mismatch` get surfaced to the user — don't fabricate
   around code that isn't in this checkout; ask which branch/PR is correct.
@@ -64,7 +64,10 @@ Every comment in the ledger gets **exactly one** verdict, and every verdict carr
 
 A **bot comment is held to the same bar as a human one** — verify the claim against the code before trusting it. "CodeRabbit said so" is not a reason to FIX; "the diff confirms the null path" is.
 
-The ledger's `fact_check` is **evidence for your verdict, not the verdict**: `already-handled` usually argues WON'T-FIX, `mismatch` argues CLARIFY, `confirmed` supports FIX — but the call, and its one-line reason, are yours.
+The ledger's `fact_check` is **evidence for your verdict, not the verdict** — and all four of its
+values land somewhere: `confirmed` supports FIX, `already-handled` usually argues WON'T-FIX,
+`mismatch` and `cannot-verify` argue CLARIFY (ask rather than guess around code you couldn't
+verify). The call, and its one-line reason, are yours.
 
 ## 3. Plan each fix, then confirm — HARD GATE
 
@@ -74,29 +77,40 @@ The ledger's `fact_check` is **evidence for your verdict, not the verdict**: `al
 
 ## 4. Execute, then close the loop
 
-Only after approval:
+Only after approval, and in this order:
 
-- Route each FIX to the right tool — **hand off, don't free-hand large edits**:
-  - behavior change → **test-driven-development** skill
-  - trivial / non-behavioral (doc, comment, rename) → direct edit
-  - large / multi-file → dispatch an implementer subagent on the PR branch (implement-task
-    Phase-3 style: TDD, code + tests same commit). Do **NOT** invoke the implement-task skill
-    end-to-end — it forks a NEW branch and opens a NEW PR; fixes must land on THIS PR's branch.
-- **Large fix → Review-Fix loop before push** (implement-task Phase-6 style, on THIS PR branch):
-  1. Check the fix diff against the approved triage table — every FIX landed, nothing out of scope.
-  2. Invoke `/pr-review-toolkit:review-pr` on the working diff.
-  3. Both clean (no gaps, no Critical/Important) → done. Otherwise fix (implementer dispatch for
-     substantive, direct for mechanical), re-run the repo's checks, and loop.
-  4. Still failing after 3 rounds → stop and take the finding history to the user.
-- Verify the changes (build/tests/the repo's checks) **before** touching the PR.
-- **Commit & push** to the PR branch.
-- **Reply** to each thread via `gh`. A reply is a **receipt, not a writeup** — one line pointing at the change, in this shape:
-  - FIX → `Fixed in <sha>: <what changed>.`
-  - WON'T-FIX → `Won't fix: <the one-line reason>.`
-  - CLARIFY → `<the single question>.`
+1. **Route each FIX** — hand off, don't free-hand large edits:
+   - behavior change → **test-driven-development** skill
+   - trivial / non-behavioral (doc, comment, rename) → direct edit
+   - large / multi-file → dispatch an implementer subagent on the PR branch (implement-task
+     Phase-3 style: TDD, code + tests same commit). Borrow that pattern only — running the
+     implement-task skill end-to-end forks a NEW branch and opens a NEW PR, and these fixes must
+     land on THIS PR's branch.
+2. **Verify** — build/tests/the repo's checks pass on the working tree before the PR is touched.
+3. **Large fix → Review-Fix loop** (implement-task Phase-6 style, on THIS PR branch):
+   1. Check the fix diff against the approved triage table — every FIX landed, nothing out of scope.
+   2. Invoke `/pr-review-toolkit:review-pr` on the working diff.
+   3. Both clean (no gaps, no Critical/Important) → go on. Otherwise fix (implementer dispatch for
+      substantive, direct for mechanical), re-run the repo's checks, and loop.
+   4. Still failing after 3 rounds → stop and take the finding history to the user.
+4. **Commit & push** to the PR branch.
+5. **Reply** to each thread via `gh`. A reply is a **receipt, not a writeup** — one line pointing at
+   the change, in this shape:
+   - FIX → `Fixed in <sha>: <what changed>.`
+   - WON'T-FIX → `Won't fix: <the one-line reason>.`
+   - CLARIFY → `<the single question>.`
 
-  The reviewer reads the diff for the how; the reply just says what landed and where.
-- **Do not resolve threads** — not even a bot's. Reply, then leave every thread for its reviewer (or the bot's owner) to resolve.
+   The reviewer reads the diff for the how; the reply just says what landed and where.
+
+   Rows that are not threads (`pr-comment`, `review-body` — a bot's review body is the common
+   case) have no thread endpoint: close them together in ONE new PR comment (`gh pr comment`),
+   one receipt line per row, same shapes.
+6. **Leave resolving to the reviewer** — reply and move on, bot threads included. The reviewer (or
+   the bot's owner) resolves their own thread.
+
+**Done when every ledger row is closed:** each row carries a posted receipt (thread reply, or a line
+in the one PR comment), and every FIX row also has its change in the pushed diff. A row with no
+receipt is feedback you dropped.
 
 ---
 
@@ -111,14 +125,12 @@ Only after approval:
 
 If you catch yourself thinking any of these, you're rationalizing. Stop and follow the step.
 
-| The thought                                                                                  | Why it's wrong                                                                                                                               |
-| -------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
-| "Reviewer's waiting — I'll just push the fixes."                                             | A wrong push blocks longer. Triage → confirm → push _is_ the fast path. Speed never skips step 3.                                            |
-| "This fix is a one-liner, no need to confirm."                                               | Every edit goes through the gate, however trivial.                                                                                           |
-| "Confirming each fix is overhead."                                                           | The gate is one table and one approval, not per-edit nagging.                                                                                |
-| "The bot flagged it, so it's real."                                                          | Verify against the code; a bot false-positive burns the same review cycle. Same bar as a human.                                              |
-| "I'll handle the ones I'm sure about and skip the confusing one."                            | Every comment earns a verdict; the confusing one is CLARIFY, not skipped.                                                                    |
-| "It's an open question, but I'll just build what I think they meant."                        | Open questions are CLARIFY. Doing the wrong thing is the slowest path.                                                                       |
-| "Obviously out of scope — I'll ignore it."                                                   | WON'T-FIX with a reason — visible, never silent.                                                                                             |
-| "27 threads, but I'll condense the JSON myself — dispatching is overhead."                   | Over 8 unresolved threads the ledger-builder absorbs the payload; your context carries the ledger, not the JSON. The count decides, not you. |
-| "I'll resolve the threads while I'm in there." / "It's just a bot thread, I can dismiss it." | Reply, don't resolve — bot threads included. The reviewer (or bot's owner) resolves.                                                         |
+| The thought                                                                                     | Why it's wrong                                                                                                                               |
+| ----------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
+| "Reviewer's waiting — I'll just push the fixes."                                                | A wrong push blocks longer. Triage → confirm → push _is_ the fast path. Speed never skips step 3.                                            |
+| "It's a one-liner." / "Confirming each fix is overhead."                                        | Every edit goes through the gate, however trivial — and the gate is one table and one approval, not per-edit nagging.                        |
+| "The bot flagged it, so it's real."                                                             | Verify against the code; a bot false-positive burns the same review cycle. Same bar as a human.                                              |
+| "I'll skip the confusing one." / "It's an open question, but I'll build what I think they meant." | Ambiguity is CLARIFY — every comment earns a verdict, and guessing at an open question is the slowest path.                                  |
+| "Obviously out of scope — I'll ignore it."                                                      | WON'T-FIX with a reason — visible, never silent.                                                                                             |
+| "27 threads, but I'll condense the JSON myself — dispatching is overhead."                      | Over 8 unresolved threads the ledger-builder absorbs the payload; your context carries the ledger, not the JSON. The count decides, not you. |
+| "I'll resolve the threads while I'm in there." / "It's just a bot thread, I can dismiss it."    | Reply, don't resolve — bot threads included. The reviewer (or bot's owner) resolves.                                                          |
