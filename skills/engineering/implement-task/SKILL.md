@@ -1,15 +1,19 @@
 ---
 name: implement-task
-description: Use when implementing a software task end-to-end — triggers include "implement this", "build this feature", "implement this ticket", a Jira ID/URL, or a plan file path. ALWAYS use for end-to-end implementation work.
+description: Implement a software task end-to-end — task source to brainstormed plan to test-first code in a worktree to a reviewed, CI-green PR. ALWAYS use when the user asks for a change to be implemented or built, hands over a Jira ID/URL, or points at a plan file.
 ---
 
 # implement-task
 
 End-to-end workflow for implementing a software task — from a task source
 (Jira / plan doc / prompt) to an open PR. Brainstorms with the user, has the approved plan
-implemented test-first in a git worktree (delegated to implementer subagents by default — the
-controller reviews, it doesn't write), then runs a whole-branch Review-Fix loop that repeats
+implemented test-first in a git worktree, then runs a whole-branch Review-Fix loop that repeats
 until no Critical/Important findings remain.
+
+You run this as **maker–checker**: implementer subagents write the code, you review it. The
+separation is what keeps your Phase 6 judgement independent of the author's blind spots — so it
+holds even when you could write the change faster yourself. Either way **you own the outcome**:
+delivered work that is wrong is the controller's failure, not the implementer's.
 
 This skill is **project-agnostic**: it carries the _method_, the repo carries the _facts_. In
 each repo, discover conventions and commands from the project itself rather than assuming them.
@@ -18,14 +22,12 @@ This skill is **procedural and ordered**. Do not skip or reorder phases. Each ph
 checkpoint. If a change spans multiple repos, run the per-repo phases (2, 3, 4, 5, 6, 7) **once
 per repo** — the approved plan (Phase 1) decides which repos those are.
 
-**REQUIRED SUB-SKILLS** (invoke them via the `Skill` tool — don't reinvent):
-
-- `superpowers:brainstorming` — collaborative planning with the user before any code is written (Phase 1).
-- `use-worktree` — create the branch + sibling worktree via its bundled `scripts/create-worktree.sh` (Phase 2).
-- `superpowers:test-driven-development` — implement the plan test-first; production code and its tests ship in the same commit (Phase 3).
-- `superpowers:verification-before-completion` — evidence before any "done" / "passing" claim (Phase 5).
-- `pr-review-toolkit:review-pr` — the controller's single whole-branch review-fix loop until no Critical/Important findings remain (Phase 6).
-- `superpowers:systematic-debugging` — when a Phase 6 review finding is a bug whose cause isn't obvious.
+**REQUIRED SUB-SKILLS** — all must be installed; invoke each via the `Skill` tool at the phase that
+calls for it, rather than reinventing what it does:
+`superpowers:brainstorming` (Phase 1) · `use-worktree` (Phase 2) ·
+`superpowers:test-driven-development` (Phase 3) · `superpowers:verification-before-completion`
+(Phase 5) · `pr-review-toolkit:review-pr` (Phase 6) · `superpowers:systematic-debugging` (Phase 6,
+non-obvious bugs).
 
 ## Bundled agent templates (`agents/`)
 
@@ -33,7 +35,7 @@ Some phases are delegated to a **read-only subagent** so the bulky raw output (v
 Jira ADF payload) is absorbed by the subagent and never bloats your context — you get back a small,
 parseable block. The prompt templates live beside this skill in `agents/`:
 
-- `agents/verification-runner.md` — runs the commands it is handed (test suite, or `gh` CI-log commands), returns a fixed evidence block (Phases 5, 6.5, and 7).
+- `agents/verification-runner.md` — runs the commands it is handed (test suite, or `gh` CI-log commands), returns a fixed evidence block (Phase 5, Phase 6 step 5, and Phase 7).
 - `agents/task-source-resolver.md` — resolves a Jira/plan/prompt source, returns distilled task metadata (Phase 0, Jira).
 
 **How to dispatch:** launch the `Explore` subagent (it has `Bash` to run commands but **cannot
@@ -43,8 +45,7 @@ pass them as a `subagent_type`.
 
 **The controller keeps the spine — never delegate it:** the worktree path, base branch, branch name,
 commit list, task metadata, the plan, and every "done / passing" claim stay with you. A subagent
-returns a distilled artifact; **you** decide what it means. A subagent's own checks never substitute
-for the Phase 6 review.
+returns a distilled artifact; **you** decide what it means.
 
 ## Hard rules
 
@@ -65,10 +66,10 @@ for the Phase 6 review.
 | A path to a plan / `.md` file                                 | Plan doc | `Read` it; treat it as the requirement.                                                                               |
 | Neither                                                       | Prompt   | Treat the user's prompt as the requirement.                                                                           |
 
-For a **Jira** source, delegate the fetch to the `agents/task-source-resolver.md` template (dispatched
-as `Explore`) — the `getJiraIssue` payload is bulky and you only need the distilled metadata it returns
-(`SOURCE/ID/URL/TYPE/TITLE/DESCRIPTION/RESTATEMENT`). For a **plan doc** or **prompt** source, resolve
-inline — there's nothing bulky to absorb, so a subagent saves nothing.
+For a **Jira** source, delegate the fetch to the `agents/task-source-resolver.md` template
+(dispatched as `Explore`) — the `getJiraIssue` payload is exactly what that template exists to
+absorb, and its block is the contract for what comes back. For a **plan doc** or **prompt** source,
+resolve inline: nothing bulky to absorb, so a subagent saves nothing.
 
 **Echo back a 2–3 line restatement** and have the user confirm before proceeding. Save the
 title, description, type, and any URL for the PR body. With a Jira ID, keep the lowercase form
@@ -107,9 +108,12 @@ Use the **`use-worktree`** skill — run its bundled script (resolve the path re
 skill's directory), do NOT reconstruct the git commands inline:
 
 ```bash
-WT=$(<use-worktree-skill-dir>/scripts/create-worktree.sh <branch> origin/<base>)
-cd "$WT"
+WT=$(<use-worktree-skill-dir>/scripts/create-worktree.sh <branch> origin/<base>) && cd "$WT"
 ```
+
+**Chain the `cd` with `&&`** — the script's own contract requires it: on failure it prints nothing
+to stdout, so `WT` is empty and a bare `cd ""` succeeds silently, leaving you in the main checkout
+and every later phase editing the wrong tree.
 
 The script fetches origin, creates the branch + worktree in one step (main checkout untouched),
 and prints the worktree path to stdout. Detect the base branch from the repo (default branch, or
@@ -127,12 +131,7 @@ baseline before implementing. All file edits, test runs, and commits in Phases 3
 
 ## Phase 3 — Implement with tests (code + tests in the same commit)
 
-**Delegate implementation to subagents by default — you (the controller) review; you don't
-write.** A controller who wrote the code reviews it with the author's blind spots; a separate
-implementer keeps your Phase 6 judgement independent (maker–checker). Your own speed or skill is
-not a reason to write it yourself — the point of delegating is not implementation quality, it is
-review independence. Either way **you own the outcome**: if delivered work is wrong, that is the
-controller's failure, not the implementer's — inspect accordingly.
+**Delegate implementation to subagents by default** (maker–checker).
 
 Dispatch one implementer subagent per task in the approved plan (via the `Agent` tool) — use a
 repo-specific implementer agent if one exists (e.g. `backend-engineer`), else `general-purpose`.
@@ -189,9 +188,8 @@ diff under review in Phase 6.
 
 Run the **full suite** for each repo — unit, integration, e2e, lint, and a build/typecheck — using
 the commands detected in Phase 2. Delegate the run to the `agents/verification-runner.md` template
-(dispatched as `Explore`, from inside the worktree): it runs the commands and returns a fixed evidence
-block (`VERDICT` + per-command exit/counts + the failing-command log), keeping thousands of lines of
-raw output out of your context. Do not proceed on a `RED` verdict. If you deliberately skip a layer
+(dispatched as `Explore`, from inside the worktree); it returns the fixed evidence block its
+contract specifies. Do not proceed on a `RED` verdict. If you deliberately skip a layer
 (e.g. e2e needs services you can't start locally), **say so explicitly** — never claim "all tests
 pass" for a subset.
 
@@ -215,10 +213,10 @@ way.)
 
 1. **Plan-compliance pass — yours, never delegated.** Read the full branch diff (`git diff <base>...HEAD`) against the approved plan and the task source. Check three things: every plan item landed; nothing out of scope crept in; the behavior matches the spec's intent, not just its letter. The reviewers in step 2 see only the diff — **only you hold the plan**, so drift from it is invisible to them and finding it is your responsibility alone. Count each gap you find as a **Critical** finding in step 3.
 2. Invoke `/pr-review-toolkit:review-pr` to review the changes on the current diff (`HEAD` vs base, including any doc changes). If the repo defines its own review command, use that instead.
-3. State the combined counts — `Critical: N, Important: M`, where N and M include your step 1 findings — and exit the loop only when **both are 0**; then apply any quick Minor/cosmetic fixes at your judgement. Minor/cosmetic findings alone do **not** force another loop.
+3. State the combined counts — `Critical: N, Important: M`, where N and M include your step 1 findings — and exit the loop only when **both are 0**. Minor/cosmetic findings never gate a round: fix them while you are already in one (step 4.2), and sweep whatever is left at exit.
 4. If there are Critical/Important findings:
    4.1 Plan the fixes yourself. Apply substantive fixes through an implementer dispatch (Phase 3 style) so you stay the checker; a small mechanical fix you may apply directly. When a finding is a bug whose cause isn't obvious, use `superpowers:systematic-debugging`. If a finding raises a question, explore the documentation and codebase for the answer first; ask the user only when genuinely blocked (a missing domain decision, conflicting requirements) — not for routine fixes.
-   4.2 Fix the Minor and cosmetic issues on your judgement.
+   4.2 Sweep the Minor and cosmetic issues while you are here.
 5. Re-run the affected test layers by **re-dispatching the `agents/verification-runner.md` template** (same as Phase 5) so review fixes don't regress behavior.
 6. Repeat the loop.
 
@@ -227,11 +225,6 @@ Do not skip step 5: tests must be green **after** each fix round, not just at th
 **Escape hatch:** if Critical/Important findings persist after **3 full rounds**, or the same
 finding keeps reappearing after being fixed (reviewer flip-flop), stop looping and take the
 finding history to the user — endless looping burns time without converging.
-
-This loop needs **no new agent** — it is assembled from pieces you already have: the review is
-`review-pr`; the fixes in 4.1/4.2 reuse an implementer subagent (Phase 3); and the re-run in
-step 5 reuses the verification-runner. The plan-compliance pass, the loop control, and the fix
-decisions stay with you — those are the checker's job, and the checker is never delegated.
 
 ## Phase 7 — push + open a PR per repo, then teardown
 
@@ -258,9 +251,8 @@ footer**. For a multi-repo change, **cross-link the paired PRs** in each body. U
 failure details by re-dispatching the `agents/verification-runner.md` template with the `gh`
 commands: `gh pr checks <pr-url>` (its exit code is the PASS/FAIL evidence) and
 `capture: gh run view <run-id> --log-failed` (marked `capture:` because its stdout is the
-evidence — the command itself exits 0). A CI job log runs thousands of lines and belongs in the
-runner's context, not yours; the runner's job is "run commands, return evidence", not only tests.
-Then fix in the worktree (re-running Phase 5/6 as the fix warrants), push again, and re-watch.
+evidence — the command itself exits 0). The runner's job is "run commands, return evidence", not
+only tests, so a CI log belongs in its context rather than yours. Then fix in the worktree (re-running Phase 5/6 as the fix warrants), push again, and re-watch.
 
 Tear down the worktree **last**, once the PR is open and CI is green — raw git, with a path
 **byte-identical** to Phase 2's `WT` (shell vars don't persist across steps, so re-derive it
@@ -282,15 +274,19 @@ Return all PR URLs to the user.
 
 ## Resuming mid-flow
 
-If re-invoked on the same task, locate the phase per repo: no approved plan from this session →
-Phase 1 (re-run the `brainstorming` skill — never code on an unconfirmed plan); plan approved but
-no branch → Phase 2; branch but no worktree and no PR → Phase 2 (recreate the sibling worktree
-per Phase 2, but attach the existing branch — `git worktree add "$WT" "<branch>"`, no `-b`, since
-the branch already exists); worktree exists but no commits → Phase 3; commits but failing/unrun
-tests → Phase 5; green but unreviewed → Phase 6; reviewed-clean but not pushed / no PR → Phase 7
-(if the worktree was already removed, push from the main checkout — the branch still exists; no
-need to recreate the worktree just to push); PR open but CI unwatched → Phase 7's CI watch.
-Confirm "looks like we're at phase N for <repo> — continue?" before resuming.
+If re-invoked on the same task, locate the phase per repo from the state on disk, then confirm
+"looks like we're at phase N for `<repo>` — continue?" before resuming.
+
+| State found                          | Resume at                                                                                                                     |
+| ------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------- |
+| No approved plan from this session   | Phase 1 — re-run `brainstorming`; an unconfirmed plan never becomes code                                                       |
+| Plan approved, no branch             | Phase 2                                                                                                                        |
+| Branch exists, no worktree, no PR    | Phase 2, with `create-worktree.sh --reuse <branch>` — that flag exists for a resumed run, and the script hard-errors on an existing branch name without it |
+| Worktree exists, no commits          | Phase 3                                                                                                                        |
+| Commits, tests failing or unrun      | Phase 5                                                                                                                        |
+| Green but unreviewed                 | Phase 6                                                                                                                        |
+| Reviewed clean, not pushed / no PR   | Phase 7 — if the worktree is already gone, push from the main checkout; the branch still holds every commit                    |
+| PR open, CI unwatched                | Phase 7's CI watch                                                                                                             |
 
 ## When NOT to use this skill
 
