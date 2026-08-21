@@ -1,13 +1,14 @@
 {
   "name": "atomgun",
-  "version": "1.0.0",
-  "description": "Engineering workflow skills: git worktrees, end-to-end task implementation, inline PR review, PR-comment triage, and Jira/Confluence editing via the Atlassian MCP.",
+  "version": "1.1.0",
+  "description": "Engineering workflow skills: git worktrees, end-to-end task implementation, inline PR review, PR-comment triage, Jira/Confluence editing via the Atlassian MCP, and dev-machine disk reclaim.",
   "skills": [
     "./skills/engineering/use-worktree",
     "./skills/engineering/implement-task",
     "./skills/engineering/pr-review-inline",
     "./skills/engineering/fix-pr-mantra",
     "./skills/engineering/jira-writing",
-    "./skills/engineering/confluence-writing"
+    "./skills/engineering/confluence-writing",
+    "./skills/maintenance/clean-my-mac"
   ]
 }

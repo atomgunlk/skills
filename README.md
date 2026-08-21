@@ -1,8 +1,8 @@
 # atomgun-skills
 
-Battle-tested [agent skills](https://agentskills.io) for real engineering workflows — git worktree discipline, end-to-end task implementation, PR review/fix loops, and the sharp edges of editing Jira/Confluence through an agent.
+Battle-tested [agent skills](https://agentskills.io) for real engineering workflows — git worktree discipline, end-to-end task implementation, PR review/fix loops, the sharp edges of editing Jira/Confluence through an agent, and reclaiming a dev Mac's disk.
 
-Every skill is a plain `SKILL.md` (+ optional `scripts/` and agent-prompt templates), so they work with any skill-aware runtime: Claude Code, Kiro, or any agent that can read a markdown file and run shell commands. Paths inside each skill are written relative to the skill's own directory — no hardcoded home paths.
+Skills are grouped by category — `engineering/` for the workflow skills, `maintenance/` for machine upkeep. Every skill is a plain `SKILL.md` (+ optional `scripts/` and agent-prompt templates), so they work with any skill-aware runtime: Claude Code, Kiro, or any agent that can read a markdown file and run shell commands. Paths inside each skill are written relative to the skill's own directory — no hardcoded home paths.
 
 ## Skills
 
@@ -14,10 +14,11 @@ Every skill is a plain `SKILL.md` (+ optional `scripts/` and agent-prompt templa
 | [fix-pr-mantra](skills/engineering/fix-pr-mantra/SKILL.md) | Addressing PR review comments — every comment gets a verdict, nothing is edited before the plan is approved | ledger-builder contract |
 | [jira-writing](skills/engineering/jira-writing/SKILL.md) | Creating/editing Jira issues via the Atlassian MCP — ADF vs markdown traps, smartlink chips, EARS acceptance criteria | — |
 | [confluence-writing](skills/engineering/confluence-writing/SKILL.md) | Updating Confluence pages via the Atlassian MCP — whole-body replace hazards, WAF blocks, huge pages | — |
+| [clean-my-mac](skills/maintenance/clean-my-mac/SKILL.md) | Reclaiming macOS disk space — measure and reconcile first, tool-native cleans, container VM trim, orphaned app data | `CONTAINERS.md` |
 
-The six skills compose: `implement-task` drives `use-worktree` for isolation and a review loop before its PR; `fix-pr-mantra` closes the loop after review; `pr-review-inline` is the reviewer's side of the same table.
+Six of them compose: `implement-task` drives `use-worktree` for isolation and a review loop before its PR; `fix-pr-mantra` closes the loop after review; `pr-review-inline` is the reviewer's side of the same table. `clean-my-mac` stands alone — it depends on nothing and nothing depends on it.
 
-> **Dependencies:** `pr-review-inline` and `implement-task` require `use-worktree` (its bundled script does all worktree creation), and `pr-review-inline` also reads an agent template from `implement-task`. The plugin install brings all six; for manual installs, install those together.
+> **Dependencies:** `pr-review-inline` and `implement-task` require `use-worktree` (its bundled script does all worktree creation), and `pr-review-inline` also reads an agent template from `implement-task`. The plugin install brings all seven; for manual installs, install those together.
 
 ## Install
 
@@ -31,15 +32,15 @@ The six skills compose: `implement-task` drives `use-worktree` for isolation and
 ### Claude Code (manual, stays in sync with your clone)
 
 ```sh
-git clone --branch v1.0.0 --depth 1 https://github.com/atomgunlk/skills.git
+git clone --branch v1.1.0 --depth 1 https://github.com/atomgunlk/skills.git
 cd skills
-ln -s "$PWD/skills/engineering/<skill-name>" ~/.claude/skills/<skill-name>
+ln -s "$PWD/skills/<category>/<skill-name>" ~/.claude/skills/<skill-name>
 ```
 
 ### Kiro
 
 ```sh
-cp -R skills/engineering/<skill-name> ~/.kiro/skills/<skill-name>
+cp -R skills/<category>/<skill-name> ~/.kiro/skills/<skill-name>
 ```
 
 ### Codex / Cursor / other agents
