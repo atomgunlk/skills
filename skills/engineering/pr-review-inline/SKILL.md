@@ -75,13 +75,14 @@ Create the checkout with the **`use-worktree`** skill's bundled script in **deta
 ```bash
 git fetch origin "pull/$PR/head" "$BASE"
 MB=$(git merge-base "$HEAD_SHA" "origin/$BASE")
-WT=$(<use-worktree-skill-dir>/scripts/create-worktree.sh --detach "$HEAD_SHA" "review-pr-$PR")
-cd "$WT"
+WT=$(<use-worktree-skill-dir>/scripts/create-worktree.sh --detach "$HEAD_SHA" "review-pr-$PR") && cd "$WT" || exit 1
 git reset "$MB"                                    # mixed reset: PR changes become UNSTAGED here
 git add -N .                                       # intent-to-add: files the PR ADDED show in git diff (without this they are untracked = INVISIBLE to the review)
 ```
 
 The worktree lands at `<repo>.worktrees/review-pr-$PR` — a **sibling of the repo**, outside its tree.
+
+**The `&& cd "$WT" || exit 1` chain is load-bearing**, per the script's own contract: on failure it prints nothing to stdout, so `WT` is empty, a bare `cd ""` succeeds silently, and the `git reset` below would run a mixed reset on the user's real checkout.
 
 **Why a sibling (not nested inside `$ROOT`):** an in-tree worktree would pollute the reviewed repo's `git status` unless a `git check-ignore` + gitignore-commit safety step is added — a step this skill would otherwise skip. A sibling lives outside the repo tree, so that whole safety step becomes unnecessary and the reviewed repo is never touched at all.
 
