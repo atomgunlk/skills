@@ -8,7 +8,7 @@
     {
       "name": "atomgun",
       "source": "./",
-      "description": "Engineering workflow skills: git worktrees, end-to-end task implementation, inline PR review, PR-comment triage, and Jira/Confluence editing via the Atlassian MCP."
+      "description": "Engineering workflow skills: git worktrees, end-to-end task implementation, inline PR review, PR-comment triage, Jira/Confluence editing via the Atlassian MCP, and dev-machine disk reclaim."
     }
   ]
 }
