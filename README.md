@@ -10,15 +10,16 @@ Skills are grouped by category — `engineering/` for the workflow skills, `main
 |---|---|---|
 | [use-worktree](skills/engineering/use-worktree/SKILL.md) | Creating git worktrees — sibling layout, safe teardown, stale-registration cleanup | `create-worktree.sh` |
 | [implement-task](skills/engineering/implement-task/SKILL.md) | Implementing a task end-to-end: Jira/plan/prompt → brainstorm → TDD in a worktree → review-fix loop → PR | 2 read-only agent templates |
+| [implement-task-using-codex](skills/engineering/implement-task-using-codex/SKILL.md) | Running `implement-task` with Codex as the implementer (via the `codex@openai-codex` plugin) while the controller plans, checks every diff, and commits. User-invoked | — |
 | [pr-review-inline](skills/engineering/pr-review-inline/SKILL.md) | Reviewing a GitHub PR and posting findings as inline line comments (never a summary) with a per-finding selection gate | anchor-verifier contract |
 | [fix-pr-mantra](skills/engineering/fix-pr-mantra/SKILL.md) | Addressing PR review comments — every comment gets a verdict, nothing is edited before the plan is approved | ledger-builder contract |
 | [jira-writing](skills/engineering/jira-writing/SKILL.md) | Creating/editing Jira issues via the Atlassian MCP — ADF vs markdown traps, smartlink chips, EARS acceptance criteria | — |
 | [confluence-writing](skills/engineering/confluence-writing/SKILL.md) | Updating Confluence pages via the Atlassian MCP — whole-body replace hazards, WAF blocks, huge pages | — |
 | [clean-my-mac](skills/maintenance/clean-my-mac/SKILL.md) | Reclaiming macOS disk space — measure and reconcile first, tool-native cleans, container VM trim, orphaned app data | `CONTAINERS.md` |
 
-Six of them compose: `implement-task` drives `use-worktree` for isolation and a review loop before its PR; `fix-pr-mantra` closes the loop after review; `pr-review-inline` is the reviewer's side of the same table. `clean-my-mac` stands alone — it depends on nothing and nothing depends on it.
+Seven of them compose: `implement-task` drives `use-worktree` for isolation and a review loop before its PR, and `implement-task-using-codex` runs that same flow with Codex writing the code; `fix-pr-mantra` closes the loop after review; `pr-review-inline` is the reviewer's side of the same table. `clean-my-mac` stands alone — it depends on nothing and nothing depends on it.
 
-> **Dependencies:** `pr-review-inline` and `implement-task` require `use-worktree` (its bundled script does all worktree creation), and `pr-review-inline` also reads an agent template from `implement-task`. The plugin install brings all seven; for manual installs, install those together.
+> **Dependencies:** `pr-review-inline` and `implement-task` require `use-worktree` (its bundled script does all worktree creation), and `pr-review-inline` also reads an agent template from `implement-task`. `implement-task-using-codex` requires `implement-task` plus the [Codex plugin for Claude Code](https://github.com/openai/codex-plugin-cc). The plugin install brings all eight; for manual installs, install those together.
 
 ## Install
 
