@@ -72,6 +72,9 @@ Your final message IS the data consumed downstream. Return exactly:
   else omit), side, severity, one-line problem, fix, fix_is_replacement}`.
   - `severity`: **normalize** to Critical / Major / Minor / Optional (a reviewer's "Important"
     → Major; below Minor → Optional). The caller maps it to an emoji — do not add emoji.
+  - `one-line problem`: ONE sentence, ~15 words or fewer, stating what is wrong. It becomes the
+    headline of the posted comment, so keep it headline-shaped. Supporting `file:line` evidence
+    belongs in `fix` or in nothing at all — do not pack it into this field.
   - `fix_is_replacement`: from Step B.3 — `true` means the caller pastes `fix` verbatim into a
     GitHub ```suggestion block; `false` (adds code elsewhere / adds a test / conceptual) means
     a plain fence.
