@@ -5,6 +5,7 @@
   "skills": [
     "./skills/engineering/use-worktree",
     "./skills/engineering/implement-task",
+    "./skills/engineering/implement-task-using-codex",
     "./skills/engineering/pr-review-inline",
     "./skills/engineering/fix-pr-mantra",
     "./skills/engineering/jira-writing",
