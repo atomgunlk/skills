@@ -7,6 +7,7 @@
     "./skills/engineering/implement-task",
     "./skills/engineering/implement-task-using-codex",
     "./skills/engineering/pr-review-inline",
+    "./skills/engineering/review-fix-loop",
     "./skills/engineering/fix-pr-mantra",
     "./skills/engineering/jira-writing",
     "./skills/engineering/confluence-writing",
